@@ -15,10 +15,11 @@ navigationCompose = "2.8.0"
 securityCrypto = "1.1.0-alpha06"
 documentFile = "1.0.1"
 coroutines = "1.8.1"
-jgit = "6.10.0.202406032230-r"
+jgit = "5.13.0.202109080827-r"
 sshj = "0.38.0"
 eddsa = "0.3.0"
 ksp = "2.0.21-1.0.25"
+desugar = "2.0.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +50,7 @@ jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "j
 jgit-ssh-apache = { group = "org.eclipse.jgit", name = "org.eclipse.jgit.ssh.apache", version.ref = "jgit" }
 sshj = { group = "com.hierynomus", name = "sshj", version.ref = "sshj" }
 eddsa = { group = "net.i2p.crypto", name = "eddsa", version.ref = "eddsa" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

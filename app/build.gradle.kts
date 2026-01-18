@@ -31,6 +31,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = "11"
@@ -43,7 +44,8 @@ android {
         resources {
             excludes += setOf(
                 "OSGI-INF/l10n/plugin.properties",
-                "META-INF/DEPENDENCIES"
+                "META-INF/DEPENDENCIES",
+                "plugin.properties"
             )
         }
     }
@@ -69,9 +71,12 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.jgit)
-    implementation(libs.jgit.ssh.apache)
+    implementation(libs.jgit.ssh.apache) {
+        exclude(group = "org.apache.sshd", module = "sshd-osgi")
+    }
     implementation(libs.sshj)
     implementation(libs.eddsa)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
