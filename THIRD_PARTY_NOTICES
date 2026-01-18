@@ -1,0 +1,12 @@
+Third-Party Notices
+
+This project includes the following third-party libraries:
+
+- AndroidX libraries (Apache 2.0)
+- Kotlin Coroutines (Apache 2.0)
+- JGit (Eclipse Distribution License v1.0)
+- JGit SSH Apache (Eclipse Distribution License v1.0)
+- SSHJ (Apache 2.0)
+- EdDSA (BSD-like)
+
+License texts are available from their respective repositories.
