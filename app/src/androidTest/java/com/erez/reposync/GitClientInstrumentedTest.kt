@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.erez.reposync.data.crypto.CryptoStore
+import com.erez.reposync.data.github.GitHubAuthStore
 import com.erez.reposync.data.git.GitClient
 import com.erez.reposync.data.model.AuthMethod
 import com.erez.reposync.data.model.Profile
@@ -20,7 +21,7 @@ class GitClientInstrumentedTest {
     fun cloneInitAndPush() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val crypto = CryptoStore(context)
-        val gitClient = GitClient(context, crypto)
+        val gitClient = GitClient(context, crypto, GitHubAuthStore(crypto))
 
         val tempDir = File(context.cacheDir, "git-test")
         if (tempDir.exists()) tempDir.deleteRecursively()

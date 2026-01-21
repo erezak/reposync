@@ -7,7 +7,7 @@ RepoSync is an Android app that synchronizes a user-selected folder with a Git r
 - SAF-based folder selection (no all-files access by default)
 - Internal Git working tree using JGit
 - Bidirectional sync with safe defaults (no deletes unless enabled)
-- HTTPS token and SSH auth
+- GitHub OAuth (preferred), HTTPS token, and SSH auth
 - Host key verification with SHA256 fingerprints
 - WorkManager-ready background sync (manual by default)
 - Encrypted credential storage via Jetpack Security Crypto
@@ -18,14 +18,25 @@ RepoSync is an Android app that synchronizes a user-selected folder with a Git r
 2. Sync Gradle.
 3. Run the `app` configuration on a device or emulator (API 24+).
 
+### GitHub OAuth (Local Dev)
+
+RepoSync uses GitHub OAuth for browser-based login. For local builds you must provide a client secret via `local.properties` (not committed to git):
+
+```
+github.client.secret=YOUR_SECRET
+```
+
+For production, do **not** ship a client secret in the app. Use a backend to exchange the code for tokens and return only the access token to the app.
+
 ## Setup a Profile
 
 1. Tap **+** to create a profile.
 2. Pick a target folder using SAF.
 3. Enter remote URL and branch.
 4. Configure auth:
-   - **HTTPS token:** enter username (often `token` or your Git provider username) and token.
-   - **SSH key:** generate a key and add the public key to your Git provider.
+   - **GitHub OAuth (recommended):** login with GitHub and select a repository.
+   - **HTTPS token (advanced):** enter username (often `token` or your Git provider username) and token.
+   - **SSH key (advanced):** generate a key and add the public key to your Git provider.
 5. Tap **Test connection** to verify and trust SSH host keys if needed.
 6. Choose **Clone remote** or **Import target folder**, then **Setup & Sync**.
 7. Optional: enable periodic sync and set constraints under Background sync.

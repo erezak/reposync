@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import com.erez.reposync.data.crypto.CryptoStore
 import com.erez.reposync.data.db.AppDatabase
+import com.erez.reposync.data.github.GitHubApi
+import com.erez.reposync.data.github.GitHubAuthRepository
+import com.erez.reposync.data.github.GitHubAuthStore
+import com.erez.reposync.data.github.GitHubRepoRepository
 import com.erez.reposync.data.git.GitClient
 import com.erez.reposync.data.repo.ProfileRepository
 import com.erez.reposync.data.repo.SyncRepository
@@ -21,9 +25,17 @@ class AppServices(context: Context) {
 
     val cryptoStore: CryptoStore = CryptoStore(appContext)
 
+    val githubAuthStore: GitHubAuthStore = GitHubAuthStore(cryptoStore)
+
+    val githubApi: GitHubApi = GitHubApi()
+
+    val githubAuthRepository: GitHubAuthRepository = GitHubAuthRepository(githubAuthStore, githubApi)
+
+    val githubRepoRepository: GitHubRepoRepository = GitHubRepoRepository(githubAuthStore, githubApi)
+
     val safRepository: SafRepository = SafRepository(appContext)
 
-    val gitClient: GitClient = GitClient(appContext, cryptoStore)
+    val gitClient: GitClient = GitClient(appContext, cryptoStore, githubAuthStore)
 
     val profileRepository: ProfileRepository = ProfileRepository(
         database.profileDao(),

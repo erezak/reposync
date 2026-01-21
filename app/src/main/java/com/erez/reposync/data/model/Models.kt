@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 enum class AuthMethod {
+    GITHUB_OAUTH,
     HTTPS_TOKEN,
     SSH_KEY
 }

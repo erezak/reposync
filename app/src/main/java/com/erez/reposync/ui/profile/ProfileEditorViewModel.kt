@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.erez.reposync.AppServices
 import com.erez.reposync.data.crypto.SshKeyGenerator
+import com.erez.reposync.data.github.GitHubRepo
 import com.erez.reposync.data.model.AuthMethod
 import com.erez.reposync.data.model.IgnoreRules
 import com.erez.reposync.data.model.Profile
@@ -23,11 +24,31 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
     private val profileRepository = services.profileRepository
     private val safRepository = services.safRepository
     private val syncRepository: SyncRepository = services.syncRepository
+    private val githubAuthRepository = services.githubAuthRepository
+    private val githubRepoRepository = services.githubRepoRepository
     private val sshKeyGenerator = SshKeyGenerator()
     private val workScheduler = WorkScheduler(services.appContext)
 
     private val _state = MutableStateFlow(ProfileEditorState())
     val state: StateFlow<ProfileEditorState> = _state
+
+    init {
+        viewModelScope.launch {
+            githubAuthRepository.authState.collect { auth ->
+                update {
+                    copy(
+                        githubAuthenticated = auth.isAuthenticated,
+                        githubLogin = auth.userLogin,
+                        githubAuthLoading = auth.isLoading,
+                        githubAuthError = auth.error,
+                        githubRepos = if (auth.isAuthenticated) githubRepos else emptyList(),
+                        githubNextPage = if (auth.isAuthenticated) githubNextPage else 1,
+                        githubHasNextPage = if (auth.isAuthenticated) githubHasNextPage else false
+                    )
+                }
+            }
+        }
+    }
 
     fun loadProfile(profileId: String?) {
         if (profileId.isNullOrBlank()) return
@@ -71,6 +92,76 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
 
     fun updateSetupMode(mode: SetupMode) = update { copy(setupMode = mode) }
 
+    fun startGitHubLogin(): String = githubAuthRepository.startLogin()
+
+    fun logoutGitHub() {
+        viewModelScope.launch {
+            githubAuthRepository.logout()
+            update {
+                copy(
+                    githubRepos = emptyList(),
+                    githubNextPage = 1,
+                    githubHasNextPage = false
+                )
+            }
+        }
+    }
+
+    fun clearGitHubError() {
+        githubAuthRepository.clearError()
+    }
+
+    fun loadGitHubRepos(reset: Boolean = true) {
+        viewModelScope.launch {
+            if (!state.value.githubAuthenticated) {
+                update { copy(githubReposError = "Login required to load repositories") }
+                return@launch
+            }
+            val nextPage = if (reset) 1 else state.value.githubNextPage
+            if (nextPage == null) return@launch
+            update {
+                copy(
+                    githubReposLoading = true,
+                    githubReposError = "",
+                    githubRepos = if (reset) emptyList() else githubRepos,
+                    githubNextPage = if (reset) 1 else githubNextPage,
+                    githubHasNextPage = if (reset) false else githubHasNextPage
+                )
+            }
+            try {
+                val page = githubRepoRepository.listOwnedRepos(nextPage, GITHUB_PAGE_SIZE)
+                update {
+                    val merged = if (reset) page.repos else githubRepos + page.repos
+                    copy(
+                        githubRepos = merged,
+                        githubReposLoading = false,
+                        githubNextPage = page.nextPage,
+                        githubHasNextPage = page.nextPage != null
+                    )
+                }
+            } catch (ex: Exception) {
+                update {
+                    copy(
+                        githubReposLoading = false,
+                        githubReposError = ex.message ?: "Failed to load repositories"
+                    )
+                }
+            }
+        }
+    }
+
+    fun selectGitHubRepo(repo: GitHubRepo) {
+        update {
+            copy(
+                remoteUrl = repo.cloneUrl,
+                branch = repo.defaultBranch.ifBlank { "main" },
+                name = if (name.isBlank() || name == "Repo") repo.name else name,
+                authMethod = AuthMethod.GITHUB_OAUTH,
+                httpsUsername = "x-access-token"
+            )
+        }
+    }
+
     fun saveToken(token: String) {
         if (state.value.hasSavedToken) {
             update { copy(connectionStatus = "Delete existing token first") }
@@ -113,6 +204,10 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
             update { copy(isBusy = true, connectionStatus = "Testing connection...") }
             try {
                 val profile = buildProfile() ?: return@launch
+                if (profile.authMethod == AuthMethod.GITHUB_OAUTH && !state.value.githubAuthenticated) {
+                    update { copy(connectionStatus = "GitHub login required") }
+                    return@launch
+                }
                 if (profile.authMethod == AuthMethod.HTTPS_TOKEN && state.value.httpsToken.isBlank() && state.value.pendingToken.isBlank() && !state.value.hasSavedToken) {
                     update { copy(connectionStatus = "HTTPS token is missing") }
                     return@launch
@@ -174,6 +269,10 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
                 update { copy(connectionStatus = "Enter a remote URL.") }
                 return@launch
             }
+            if (current.authMethod == AuthMethod.GITHUB_OAUTH && !current.githubAuthenticated) {
+                update { copy(connectionStatus = "GitHub login required") }
+                return@launch
+            }
             if (current.authMethod == AuthMethod.HTTPS_TOKEN && current.httpsToken.isBlank() && current.pendingToken.isBlank() && !current.hasSavedToken) {
                 update { copy(connectionStatus = "HTTPS token is missing") }
                 return@launch
@@ -223,6 +322,11 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
     private fun buildProfile(): Profile? {
         val current = state.value
         if (current.targetTreeUri.isBlank()) return null
+        val authUsername = if (current.authMethod == AuthMethod.GITHUB_OAUTH) {
+            "x-access-token"
+        } else {
+            current.httpsUsername
+        }
         return Profile(
             id = if (current.id.isBlank()) java.util.UUID.randomUUID().toString() else current.id,
             name = current.name.ifBlank { "Repo" },
@@ -230,7 +334,7 @@ class ProfileEditorViewModel(services: AppServices) : ViewModel() {
             remoteUrl = current.remoteUrl,
             branch = current.branch.ifBlank { "main" },
             authMethod = current.authMethod,
-            httpsUsername = current.httpsUsername.ifBlank { "token" },
+            httpsUsername = authUsername.ifBlank { "token" },
             authorName = current.authorName.ifBlank { "RepoSync" },
             authorEmail = current.authorEmail.ifBlank { "reposync@local" },
             commitMessageTemplate = current.commitTemplate.ifBlank { "Sync <timestamp> (<device>)" },
@@ -265,10 +369,19 @@ data class ProfileEditorState(
     val targetTreeName: String = "",
     val remoteUrl: String = "",
     val branch: String = "main",
-    val authMethod: AuthMethod = AuthMethod.HTTPS_TOKEN,
+    val authMethod: AuthMethod = AuthMethod.GITHUB_OAUTH,
     val httpsUsername: String = "token",
     val httpsToken: String = "",
     val hasSavedToken: Boolean = false,
+    val githubAuthenticated: Boolean = false,
+    val githubLogin: String = "",
+    val githubAuthLoading: Boolean = false,
+    val githubAuthError: String = "",
+    val githubRepos: List<GitHubRepo> = emptyList(),
+    val githubReposLoading: Boolean = false,
+    val githubReposError: String = "",
+    val githubNextPage: Int? = 1,
+    val githubHasNextPage: Boolean = false,
     val authorName: String = "",
     val authorEmail: String = "",
     val commitTemplate: String = "Sync <timestamp> (<device>)",
@@ -346,3 +459,5 @@ enum class IgnorePreset(val id: String, val label: String, val patterns: List<St
         )
     )
 }
+
+private const val GITHUB_PAGE_SIZE = 30

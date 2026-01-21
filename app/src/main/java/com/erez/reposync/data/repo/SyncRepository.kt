@@ -7,6 +7,7 @@ import com.erez.reposync.data.db.dao.FingerprintDao
 import com.erez.reposync.data.db.dao.SyncLogDao
 import com.erez.reposync.data.db.entities.FingerprintEntity
 import com.erez.reposync.data.db.entities.SyncLogEntity
+import com.erez.reposync.data.github.GitHubAuthKeys
 import com.erez.reposync.data.git.GitClient
 import com.erez.reposync.data.git.SshHostKeyFetcher
 import com.erez.reposync.data.model.AuthMethod
@@ -633,7 +634,8 @@ class SyncLogWriter(
         val token = cryptoStore.getSecret("token_${profile.id}")
         val privateKey = cryptoStore.getSecret("ssh_priv_${profile.id}")
         val publicKey = cryptoStore.getSecret("ssh_pub_${profile.id}")
-        return listOfNotNull(token, privateKey, publicKey, profile.remoteUrl)
+        val githubToken = cryptoStore.getSecret(GitHubAuthKeys.ACCESS_TOKEN)
+        return listOfNotNull(token, privateKey, publicKey, githubToken, profile.remoteUrl)
     }
 }
 

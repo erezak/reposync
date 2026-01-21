@@ -2,6 +2,7 @@ package com.erez.reposync.data.git
 
 import android.content.Context
 import com.erez.reposync.data.crypto.CryptoStore
+import com.erez.reposync.data.github.GitHubAuthStore
 import com.erez.reposync.data.model.AuthMethod
 import com.erez.reposync.data.model.Profile
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import java.time.Instant
 class GitClient(
     private val context: Context,
     private val cryptoStore: CryptoStore,
+    private val githubAuthStore: GitHubAuthStore,
     private val knownHostsStore: KnownHostsStore = KnownHostsStore(context)
 ) {
 
@@ -126,6 +128,10 @@ class GitClient(
             AuthMethod.HTTPS_TOKEN -> {
                 val token = cryptoStore.getSecret("token_${profile.id}") ?: ""
                 UsernamePasswordCredentialsProvider(profile.httpsUsername, token)
+            }
+            AuthMethod.GITHUB_OAUTH -> {
+                val token = githubAuthStore.getAccessToken() ?: ""
+                UsernamePasswordCredentialsProvider("x-access-token", token)
             }
             AuthMethod.SSH_KEY -> null
         }
